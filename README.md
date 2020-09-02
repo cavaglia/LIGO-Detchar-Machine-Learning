@@ -1,1 +1,1 @@
-# SN-Machine-Learning
+# LIGo-Detchar-Machine-Learning
