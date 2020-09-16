@@ -1,3 +1,4 @@
+## Usage: python3.6 nn2.py --datafile=H-H1_GWOSC_O2_4KHZ_R1-1181155328-4096.hdf5
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
