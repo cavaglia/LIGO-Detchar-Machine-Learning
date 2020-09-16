@@ -21,15 +21,6 @@ np.set_printoptions(threshold=np.inf)
 
 dataFile = h5py.File(filename, 'r')
 
-#keys = []
-#for key in datafile.keys():
-#	keys.append(key)
-#
-#print(keys)
-#
-#group = datafile[keys[1]]
-#print(group.keys())
-
 strain = dataFile['strain']['Strain'][()]
 X = strain
 dqInfo = dataFile['quality']['simple']
