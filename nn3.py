@@ -75,7 +75,12 @@ while i<length:
 #print(CBC_CAT2Data)
 #print(CBC_CAT3Data)
 
-#plt.plot(Data, label='Available data',color='b')
+plt.figure(0)
+plt.plot(strain, label='Available data',color='b')
+plt.legend(loc=1)
+plt.xlabel('Time (s)')
+plt.savefig('data.png')
+plt.figure(1)
 plt.plot(CBC_CAT1Data, label='Available data passing CBC CAT1',color='r')
 plt.plot(CBC_CAT2Data, label='Available data passing CBC CAT2',color='c')
 plt.plot(CBC_CAT3Data, label='Available data passing CBC CAT3',color='g')
