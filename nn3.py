@@ -1,4 +1,5 @@
 ## Usage: python3.6 nn2.py --datafile=H-H1_GWOSC_O2_4KHZ_R1-1181155328-4096.hdf5
+## load.txt and for file in array 
 import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
@@ -10,6 +11,8 @@ import pandas as pd
 import argparse
 import h5py
 from sklearn.neural_network import MLPClassifier
+from sklearn.metrics import accuracy_score
+from sklearn.metrics import f1_score
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--datafile', help='Data file', required=True)
@@ -86,8 +89,14 @@ plt.legend(loc=1)
 plt.xlabel('Time (s)')
 plt.savefig('dq.png')
 
-clf = MLPClassifier(solver='lbfgs', alpha=1e-5, hidden_layer_sizes=(10, 4), random_state=1)
+clf = MLPClassifier(solver='lbfgs', alpha=1e-10, hidden_layer_sizes=(100, 4), random_state=1)
 clf.fit(X_Input, y)
-#print(clf.predict(X_Input))
+y_pred = clf.predict(X_Input)
+print(accuracy_score(y,y_pred))
+print(f1_score(y,y_pred,average = 'macro'))
+print(f1_score(y,y_pred,average = 'weighted'))
+
+
+print(clf.predict(X_Input))
 #print(clf.predict(X_Input[10].reshape(1,-1)))
 sys.exit()
