@@ -114,7 +114,7 @@ def save_predicted_labels(data_file,input_dataset,model):
     with open(filename, 'a') as f:
         f.write('# Predicted labels for ' + data_file + '\n')
         predicted_labels.to_csv(f,sep='\t',index=False)
-    return
+    return predicted_labels
     
 #--- Body of program
 
@@ -126,7 +126,9 @@ data = data_download(data_file)
 DQ = read_DQ(data_file)
 training_dataset = build_training_dataset(sampling_rate,start_time,end_time,data,DQ)
 trained_model = build_training_model(training_dataset)
-save_predicted_labels(data_file,training_dataset,trained_model)
+DQ_predicted = save_predicted_labels(data_file,training_dataset,trained_model)
+
+## Add here your F1 score compute_F1(DQ,DQ_predicted)
 
 sys.exit()
 
