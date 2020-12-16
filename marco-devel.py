@@ -117,10 +117,10 @@ def save_predicted_labels(data_file,input_dataset,model):
         predicted_labels.to_csv(f,sep='\t',index=False)
     return predicted_labels
 
-def compute_F1_score(y_true,y_pred))
-    score = f1_score(y_true, y_pred)
+def compute_F1_score(y_true,y_pred)
+    predicted_labels = y_pred['labels']
+    score = f1_score(y_true, predicted_labels)
 return score
-
 
 #--- Body of program
 
