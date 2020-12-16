@@ -120,6 +120,8 @@ def save_predicted_labels(data_file,input_dataset,model):
 def compute_F1_score(y_true,y_pred)
     predicted_labels = y_pred['labels']
     score = f1_score(y_true, predicted_labels)
+    if verbose:
+        print(score)   
 return score
 
 #--- Body of program
