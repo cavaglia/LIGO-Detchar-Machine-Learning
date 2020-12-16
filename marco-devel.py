@@ -12,6 +12,7 @@ import argparse
 import h5py
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import f1_score
 from sklearn import preprocessing
 
 parser = argparse.ArgumentParser()
@@ -115,7 +116,12 @@ def save_predicted_labels(data_file,input_dataset,model):
         f.write('# Predicted labels for ' + data_file + '\n')
         predicted_labels.to_csv(f,sep='\t',index=False)
     return predicted_labels
-    
+
+def compute_F1_score(y_true,y_pred))
+    score = f1_score(y_true, y_pred)
+return score
+
+
 #--- Body of program
 
 if verbose:
@@ -129,6 +135,7 @@ trained_model = build_training_model(training_dataset)
 DQ_predicted = save_predicted_labels(data_file,training_dataset,trained_model)
 
 ## Add here your F1 score compute_F1(DQ,DQ_predicted)
+## F1_score = compute_F1_score(DQ,DQ_predicted)
 
 sys.exit()
 
