@@ -10,9 +10,10 @@ import sys
 import pandas as pd
 import argparse
 import h5py
+import csv
 from sklearn.neural_network import MLPClassifier
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import f1_score
+from sklearn import metrics as metrics
 from sklearn import preprocessing
 
 parser = argparse.ArgumentParser()
@@ -106,7 +107,7 @@ def build_training_model(dataset):
 def save_predicted_labels(data_file,input_dataset,model):
     currentDirectory = os.getcwd()
     [filename_body, filename_ext] = data_file.split('.')
-    filename = currentDirectory+'/Results/'+filename_body+'.txt'
+    filename = currentDirectory+'/Results/'+filename_body+'-prediction.txt'
     if os.path.isfile(filename):
         os.remove(filename)
     labels = model.predict(input_dataset['Strain'].to_list())
@@ -117,12 +118,23 @@ def save_predicted_labels(data_file,input_dataset,model):
         predicted_labels.to_csv(f,sep='\t',index=False)
     return predicted_labels
 
-def compute_F1_score(y_true,y_pred)
-    predicted_labels = y_pred['labels'].values
-    score = f1_score(y_true, predicted_labels)
-    if verbose:
-        print(score)   
-return score
+def compute_metrics(data_file,training_set,predicted_labels):
+    currentDirectory = os.getcwd()
+    [filename_body, filename_ext] = data_file.split('.')
+    filename = currentDirectory+'/Results/'+filename_body+'-metrics.txt'
+    if os.path.isfile(filename):
+        os.remove(filename)
+    y_true = training_set['Label'].to_list()
+    y_pred = predicted_labels['Label'].to_list()
+    predicted_metrics = metrics.classification_report(y_true, y_pred, zero_division='warn')
+    cm_array = metrics.confusion_matrix(y_true, y_pred)
+    cm = pd.DataFrame(cm_array) 
+    with open(filename, 'a') as f:
+        f.write('# Predicted labels for ' + data_file + ':\n\n')
+        f.write(predicted_metrics)
+        f.write('\n # Confusion matrix for ' + data_file + ':\n\n')
+        cm.to_csv(f,sep='\t',index=True)
+    return
 
 #--- Body of program
 
@@ -135,7 +147,8 @@ DQ = read_DQ(data_file)
 training_dataset = build_training_dataset(sampling_rate,start_time,end_time,data,DQ)
 trained_model = build_training_model(training_dataset)
 DQ_predicted = save_predicted_labels(data_file,training_dataset,trained_model)
-F1_score = compute_F1_score(DQ,DQ_predicted)
+
+compute_metrics(data_file,training_dataset,DQ_predicted)
 
 sys.exit()
 
