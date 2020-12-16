@@ -135,9 +135,7 @@ DQ = read_DQ(data_file)
 training_dataset = build_training_dataset(sampling_rate,start_time,end_time,data,DQ)
 trained_model = build_training_model(training_dataset)
 DQ_predicted = save_predicted_labels(data_file,training_dataset,trained_model)
-
-## Add here your F1 score compute_F1(DQ,DQ_predicted)
-## F1_score = compute_F1_score(DQ,DQ_predicted)
+F1_score = compute_F1_score(DQ,DQ_predicted)
 
 sys.exit()
 
