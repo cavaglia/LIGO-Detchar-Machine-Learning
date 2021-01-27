@@ -1,4 +1,4 @@
-## Usage: python3.8 marco-devel.py [--rate 4096] [--verbose] [--start POSITIVE INTEGER ] [--end POSITIVE INTEGER] [--standardize] [--whiten] [--filterfreq low,high] --datafile datafile.txt
+## Usage: python3.8 marco-devel.py [--rate 4096] [--verbose] [--start_train POSITIVE INTEGER ] [--end_train POSITIVE INTEGER] [--standardize] [--whiten] [--filterfreq low,high] --trainfile trainfile.txt [--start_test POSITIVE INTEGER ] [--end_test POSITIVE INTEGER] --testfile testfile.txt
 ## GWOSC data files must be in "Data subdirectory". Datafile.txt must be in the dame directory of this script.
 ##    It must contain a list of GWOSC files to be analyzed , one per line. Results go in "Results" subdirectory.
 import numpy as np
@@ -20,20 +20,26 @@ import matplotlib.mlab as mlab
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--verbose', action='count', help='Verbose mode')
-parser.add_argument('--datafile', help='Ascii file with list of hdf data file from GWOSC. Each line (example): H-H1_GWOSC_O2_4KHZ_R1-1181155328-4096.hdf5', required=True)
-parser.add_argument('--start',  type=int, help='The start time (in seconds) of the data to analyze. For debugging purposes. (Positive integer, default = 0)', default=0, required=False)
-parser.add_argument('--end',  type=int, help='The end time (in seconds) of data to analyze. For debugging purposes. (Positive integer, default = all the available time)', required=False)
+parser.add_argument('--trainfile', help='Ascii file with list of hdf data file from GWOSC for training. Each line (example): H-H1_GWOSC_O2_4KHZ_R1-1181155328-4096.hdf5', required=True)
+parser.add_argument('--testfile', help='Ascii file with list of hdf data file from GWOSC for testing. Each line (example): H-H1_GWOSC_O2_4KHZ_R1-1181155328-4096.hdf5', required=True)
+parser.add_argument('--start_train',  type=int, help='The start time (in seconds) of training data to analyze. For debugging purposes. (Positive integer, default = 0)', default=0, required=False)
+parser.add_argument('--end_train',  type=int, help='The end time (in seconds) of training data to analyze. For debugging purposes. (Positive integer, default = all the available time)', required=False)
+parser.add_argument('--start_test',  type=int, help='The start time (in seconds) of testing data to analyze. For debugging purposes. (Positive integer, default = 0)', default=0, required=False)
+parser.add_argument('--end_test',  type=int, help='The end time (in seconds) of testing data to analyze. For debugging purposes. (Positive integer, default = all the available time)', required=False)
 parser.add_argument('--rate', type=int, help='Sampling rate (positive even integer. It must match the sampling rate of the LIGO data. Default = 4096)', default=4096, required=False)
 parser.add_argument('--filterfreq', nargs='*', default=[], help="Filter frequencies: --filterfreq low,high ...")
 parser.add_argument('--standardize', action='count', help='Standardize data')
 parser.add_argument('--whiten', action='count', help='Whitens the data')
 args = parser.parse_args()
 
-data_file = args.datafile
+train_file = args.trainfile
+test_file = args.testfile
 verbose = args.verbose
 sampling_rate = args.rate
-start_time = args.start
-end_time = args.end
+start_train_time = args.start_train
+end_train_time = args.end_train
+start_test_time = args.start_test
+end_test_time = args.end_test
 sampling_rate = args.rate
 standardize = args.standardize
 whiten = args.whiten
@@ -123,9 +129,9 @@ def standardize_data(X):
     normalized = scaler.transform(data_reshaped)
     return normalized
 
-def build_training_dataset(sampling_rate,start_time,end_time,data_download,DQ):
+def build_dataset(sampling_rate,start_time,end_time,data_download,DQ):
     if verbose:
-        print('Building a %d second-long training data set...' % (end_time - start_time))    
+        print('Building a %d second-long dataset...' % (end_time - start_time))    
     labeled_data = pd.DataFrame(columns=['Strain', 'Label'])
     i = start_time
     while i < end_time:
@@ -137,16 +143,16 @@ def build_training_dataset(sampling_rate,start_time,end_time,data_download,DQ):
         i+=1
     data_length = len(labeled_data)
     if not data_length:
-        print('There is no data to train. Aborting!')
+        print('There is no data to train or test. Aborting!')
         sys.exit()
     elif data_length < (end_time - start_time):
-        print('Warning: Some data is not defined. The duration of the training data set is only %d second(s).' % (len(labeled_data)))    
+        print('Warning: Some data is not defined. The duration of the dataset is only %d second(s).' % (len(labeled_data)))    
         
     return labeled_data
 
 def build_training_model(dataset):
     if verbose:
-        print('Training model...')    
+        print('Training the model...')    
    #clf = MLPClassifier(solver = 'lbfgs', alpha = 1e-5, hidden_layer_sizes = (10, 4), random_state = 1)
     clf = MLPClassifier()
     clf.fit(dataset['Strain'].to_list(), dataset['Label'].to_list())
@@ -169,6 +175,24 @@ def save_predicted_labels(data_file,input_dataset,model):
     if verbose:
         print('Predicted labels are saved in ./Results/%s.' % (filename_body+'-prediction.txt'))    
     return predicted_labels
+
+def save_true_labels(data_file,input_dataset):
+    if verbose:
+        print('Saving the true labels (for debugging)...')    
+    currentDirectory = os.getcwd()
+    [filename_body, filename_ext] = data_file.split('.')
+    filename = currentDirectory+'/Results/'+filename_body+'-true.txt'
+    if os.path.isfile(filename):
+        os.remove(filename)
+    labels = input_dataset['Label'].to_list()
+    labels_index = input_dataset['Time'].to_list()
+    true_labels = pd.DataFrame({'Time':labels_index,'Label':labels},dtype=int)
+    with open(filename, 'a') as f:
+        f.write('# True labels for ' + data_file + '\n')
+        true_labels.to_csv(f,sep='\t',index=False)
+    if verbose:
+        print('True labels are saved in ./Results/%s.' % (filename_body+'-true.txt'))    
+    return true_labels
 
 def compute_metrics(data_file,training_set,predicted_labels):
     if verbose:
@@ -202,19 +226,57 @@ if args.filterfreq:
 else:
     filter_freq = []
 
-strain, DQ = data_download(data_file)
-strain_conditioned, DQ_conditioned = condition_data(sampling_rate,filter_freq,whiten,strain,DQ)
+# Reads and conditions the data for training
 
-if not end_time or end_time > len(DQ_conditioned):
-   end_time = len(DQ_conditioned)
-   print('Warning: The end time of the training set is %d second(s).' % (end_time))
+strain_train, DQ_train = data_download(train_file)
+strain_train_conditioned, DQ_train_conditioned = condition_data(sampling_rate,filter_freq,whiten,strain_train,DQ_train)
 
-training_dataset = build_training_dataset(sampling_rate,start_time,end_time,strain_conditioned,DQ_conditioned)
+if not end_train_time or end_train_time > len(DQ_train_conditioned):
+   end_train_time = len(DQ_train_conditioned)
+   print('Warning: The end time of the training set is %d second(s).' % (end_train_time))
+
+# Builds the training dataset
+
+training_dataset = build_dataset(sampling_rate,start_train_time,end_train_time,strain_train_conditioned,DQ_train_conditioned)
+
+# Saves the true training labels (for debugging)
+
+save_true_labels(train_file,training_dataset)
+
+# Builds the model on the training data set
+
 trained_model = build_training_model(training_dataset)
-DQ_predicted = save_predicted_labels(data_file,training_dataset,trained_model)
-compute_metrics(data_file,training_dataset,DQ_predicted)
+
+# Does the prediction on the same training dataset and saves the results (this step for debugging purposes) 
+
+DQ_train_predicted = save_predicted_labels(train_file,training_dataset,trained_model)
+compute_metrics(train_file,training_dataset,DQ_train_predicted)
+
+# Reads and conditions the data for training
+
+strain_test, DQ_test = data_download(test_file)
+strain_test_conditioned, DQ_test_conditioned = condition_data(sampling_rate,filter_freq,whiten,strain_test,DQ_test)
+
+if not end_test_time or end_test_time > len(DQ_test_conditioned):
+   end_test_time = len(DQ_test_conditioned)
+   print('Warning: The end time of the testing set is %d second(s).' % (end_test_time))
+
+# Builds the training dataset
+
+testing_dataset = build_dataset(sampling_rate,start_test_time,end_test_time,strain_test_conditioned,DQ_test_conditioned)
+
+# Saves the true testing labels (for debugging)
+
+save_true_labels(test_file,testing_dataset)
+
+# Does the prediction on the same testing dataset using the trained model and saves the results 
+
+DQ_test_predicted = save_predicted_labels(test_file,testing_dataset,trained_model)
+
+compute_metrics(test_file,testing_dataset,DQ_test_predicted)
 
 if verbose:
     print('Done!')
 
 sys.exit()
+
