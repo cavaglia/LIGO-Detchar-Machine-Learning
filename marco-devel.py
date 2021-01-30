@@ -1,4 +1,6 @@
-## Usage: python3.8 marco-devel.py [--rate 4096] [--verbose] [--start_train POSITIVE INTEGER ] [--end_train POSITIVE INTEGER] [--standardize] [--whiten] [--filterfreq low,high] --trainfile trainfile.txt [--start_test POSITIVE INTEGER ] [--end_test POSITIVE INTEGER] --testfile testfile.txt
+## Usage: python3.8 marco-devel.py [--rate 4096] [--verbose] [--start_train POSITIVE INTEGER ] [--end_train POSITIVE INTEGER]
+## [--standardize] [--whiten] [--filterfreq low,high] --trainfile trainfile.txt [--start_test POSITIVE INTEGER ]
+## [--end_test POSITIVE INTEGER] --testfile testfile.txt [--balance]
 ## GWOSC data files must be in "Data subdirectory". Datafile.txt must be in the dame directory of this script.
 ##    It must contain a list of GWOSC files to be analyzed , one per line. Results go in "Results" subdirectory.
 import numpy as np
@@ -30,6 +32,7 @@ parser.add_argument('--rate', type=int, help='Sampling rate (positive even integ
 parser.add_argument('--filterfreq', nargs='*', default=[], help="Filter frequencies: --filterfreq low,high ...")
 parser.add_argument('--standardize', action='count', help='Standardize data')
 parser.add_argument('--whiten', action='count', help='Whitens the data')
+parser.add_argument('--balance', action='count', help='Balance the data set')
 args = parser.parse_args()
 
 train_file = args.trainfile
@@ -43,6 +46,7 @@ end_test_time = args.end_test
 sampling_rate = args.rate
 standardize = args.standardize
 whiten = args.whiten
+balance = args.balance
 
 # ---------------------------
 
@@ -132,7 +136,7 @@ def standardize_data(X):
 def build_dataset(sampling_rate,start_time,end_time,data_download,DQ):
     if verbose:
         print('Building a %d second-long dataset...' % (end_time - start_time))    
-    labeled_data = pd.DataFrame(columns=['Strain', 'Label'])
+    labeled_data = pd.DataFrame(columns=['Time', 'Strain', 'Label'])
     i = start_time
     while i < end_time:
         data = read_strain(sampling_rate,i,data_download)
@@ -146,8 +150,7 @@ def build_dataset(sampling_rate,start_time,end_time,data_download,DQ):
         print('There is no data to train or test. Aborting!')
         sys.exit()
     elif data_length < (end_time - start_time):
-        print('Warning: Some data is not defined. The duration of the dataset is only %d second(s).' % (len(labeled_data)))    
-        
+        print('Warning: Some data is not defined. The duration of the dataset is only %d second(s).' % (len(labeled_data)))           
     return labeled_data
 
 def build_training_model(dataset):
@@ -216,6 +219,21 @@ def compute_metrics(data_file,training_set,predicted_labels):
         print('Prediction metrics are saved in ./Results/%s.' % (filename_body+'-metrics.txt'))    
     return
 
+def balance_dataset(dataset):
+    balanced_dataset = pd.DataFrame(columns=['Time', 'Strain', 'Label'])
+    if verbose:
+        print('Balancing and reshuffling the dataset... [in development!]') 
+        label_count = dataset['Label'].value_counts(sort=True,ascending=True)
+        label_min_count = label_count.min()
+        grouped_dataset = dataset.groupby('Label')
+        for group in grouped_dataset.groups:
+            sampled_group = grouped_dataset.get_group(group).sample(n=label_min_count)
+            balanced_dataset = balanced_dataset.append(sampled_group)
+    balanced_dataset = balanced_dataset.reindex(np.random.permutation(balanced_dataset.index))
+    balanced_dataset.reset_index(inplace=True,drop=True)
+    print('The size of the balanced data set is %d samples.' % (len(balanced_dataset)))           
+    return balanced_dataset
+
 #--- Body of program
 
 if verbose:
@@ -238,6 +256,11 @@ if not end_train_time or end_train_time > len(DQ_train_conditioned):
 # Builds the training dataset
 
 training_dataset = build_dataset(sampling_rate,start_train_time,end_train_time,strain_train_conditioned,DQ_train_conditioned)
+
+# Balances the training dataset
+
+if balance:
+    training_dataset = balance_dataset(training_dataset)
 
 # Saves the true training labels (for debugging)
 
